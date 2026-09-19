@@ -216,6 +216,10 @@ to `SERVICE_INTERRUPTION` (`internal/severity.MapCategory`).
 - `POST /alerts/adapters/gcp` — accepts a GCP Cloud Monitoring webhook
   notification; `incident.state == "closed"` forces severity to `ok`
   regardless of `incident.severity`
+- `POST /alerts/adapters/elasticsearch` — accepts a Kibana Webhook connector
+  action payload; `state` (`ACTIVE`/`COMPLETED`/`ERROR`) overrides the
+  numeric `severity` field — `COMPLETED` always maps to `ok`, `ERROR`
+  (the rule/monitor itself failed) always maps to `critical`
 - `POST /alerts/adapters/site24x7` — accepts a Site24x7 native alert-webhook
   payload; only `STATUS` `TROUBLE`/`DOWN`/`CRITICAL` creates a buffered
   alert, any other `STATUS` returns `200` with a small acknowledgment body

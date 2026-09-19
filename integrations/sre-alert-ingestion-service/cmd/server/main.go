@@ -145,6 +145,7 @@ func main() {
 	mux.Handle("POST /alerts/adapters/azure", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromAzure)))
 	mux.Handle("POST /alerts/adapters/aws", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromAWS)))
 	mux.Handle("POST /alerts/adapters/gcp", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromGCP)))
+	mux.Handle("POST /alerts/adapters/elasticsearch", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromElasticsearch)))
 	mux.Handle("POST /alerts/adapters/site24x7", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromSite24x7)))
 	mux.Handle("POST /alerts/adapters/opensearch", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromOpenSearch)))
 	mux.Handle("POST /alerts/adapters/grafana", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromGrafana)))

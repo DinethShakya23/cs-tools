@@ -209,6 +209,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /alerts/adapters/elasticsearch:
+    post:
+      summary: Submit a Kibana Webhook connector action payload.
+      description: >
+        Translates a Kibana rule's Webhook connector action body into this
+        service's generic AlertRequest, then reuses the exact same
+        validation/buffering/worker/grouping/dedup/escalation path as
+        POST /alerts.
+      operationId: createAlertFromElasticsearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ElasticsearchAlertPayload'
+      responses:
+        "202":
+          description: Alert accepted and durably buffered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertAcceptedResponse'
+        "400":
+          description: BadRequest — missing a required field, or malformed JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "413":
+          description: RequestEntityTooLarge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: InternalServerError
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /alerts/adapters/site24x7:
     post:
       summary: Submit a Site24x7 native alert-webhook payload.
@@ -511,6 +552,30 @@ components:
               additionalProperties:
                 type: string
               description: Operator-configured labels (service/category/environment).
+
+    ElasticsearchAlertPayload:
+      type: object
+      description: >
+        A Kibana rule's Webhook connector action body, modeled to only the
+        fields this adapter reads.
+      properties:
+        rule_name:
+          type: string
+        state:
+          type: string
+          description: '"ACTIVE", "COMPLETED", or "ERROR".'
+        alert_id:
+          type: string
+          description: Used as the unique identifier matching ACTIVE/COMPLETED states of the same alert.
+        severity:
+          type: string
+          description: Numeric string "1".."5", only consulted when state is ACTIVE.
+        service:
+          type: string
+        environment:
+          type: string
+        category:
+          type: string
 
     Site24x7AlertPayload:
       type: object

@@ -291,6 +291,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /alerts/adapters/openobserve:
+    post:
+      summary: Submit an OpenObserve Webhook destination payload.
+      description: >
+        Translates an OpenObserve alert's Webhook destination payload into
+        this service's generic AlertRequest, then reuses the exact same
+        validation/buffering/worker/grouping/dedup/escalation path as
+        POST /alerts. Unlike every other vendor here, this payload carries
+        numeric urgency/impact directly instead of a severity word, and
+        this vendor has no native resolved event.
+      operationId: createAlertFromOpenObserve
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenObserveAlertPayload'
+      responses:
+        "202":
+          description: Alert accepted and durably buffered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertAcceptedResponse'
+        "400":
+          description: BadRequest — missing a required field, or malformed JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "413":
+          description: RequestEntityTooLarge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: InternalServerError
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /alerts/adapters/site24x7:
     post:
       summary: Submit a Site24x7 native alert-webhook payload.
@@ -650,6 +693,32 @@ components:
               type: string
             category:
               type: string
+
+    OpenObserveAlertPayload:
+      type: object
+      description: >
+        An OpenObserve alert's Webhook destination template payload,
+        modeled to only the fields this adapter reads.
+      properties:
+        short_description:
+          type: string
+        description:
+          type: string
+        urgency:
+          type: string
+          description: Numeric string "1".."3"; consulted first.
+        impact:
+          type: string
+          description: Numeric string "1".."3"; fallback when urgency is absent or unrecognized.
+        service:
+          type: string
+        environment:
+          type: string
+        category:
+          type: string
+        correlation_id:
+          type: string
+          description: This vendor's own dedup key.
 
     Site24x7AlertPayload:
       type: object

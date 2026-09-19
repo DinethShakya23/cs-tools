@@ -224,6 +224,11 @@ to `SERVICE_INTERRUPTION` (`internal/severity.MapCategory`).
   payload; a service-level event is distinguished from a host-level one by
   `service_name` being non-empty; `notification_type == "Recovery"` forces
   severity to `ok` regardless of the underlying state
+- `POST /alerts/adapters/openobserve` — accepts an OpenObserve Webhook
+  destination payload, which carries numeric `urgency`/`impact` directly
+  rather than a severity word (`impact` is only consulted when `urgency`
+  is absent or unrecognized). This vendor has no native resolved event —
+  there is no recovery override here, unlike every other adapter
 - `POST /alerts/adapters/site24x7` — accepts a Site24x7 native alert-webhook
   payload; only `STATUS` `TROUBLE`/`DOWN`/`CRITICAL` creates a buffered
   alert, any other `STATUS` returns `200` with a small acknowledgment body

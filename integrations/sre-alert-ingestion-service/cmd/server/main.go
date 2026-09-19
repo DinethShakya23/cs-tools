@@ -112,7 +112,7 @@ func main() {
 	// "system"/machine-caller concept today, so this is required config,
 	// never guessed here — see handler.AlertHandler's doc comment and this
 	// service's README/CLAUDE.md.
-	alertHandler := handler.NewAlertHandler(dbStore, mustEnv("SRE_ALERT_CALLER_ID"))
+	alertHandler := handler.NewAlertHandler(dbStore, mustEnv("SRE_ALERT_CALLER_ID"), os.Getenv("SRE_ALERT_ASSIGNMENT_GROUP_ID"))
 	healthHandler := handler.NewHealthHandler(dbStore)
 
 	// SRE_ALERT_AUTH_USERS is required: this service's only inbound

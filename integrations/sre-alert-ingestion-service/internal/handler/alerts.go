@@ -109,7 +109,13 @@ func (req AlertRequest) validate() string {
 //
 // alertNumber is embedded into the built Subject as a dedup tag
 // (csmclient.DedupTag) — see buildSubject's doc comment for why.
-func MapToIncident(req AlertRequest, alertNumber, callerID string) csmclient.CreateIncidentRequest {
+//
+// assignmentGroupID, when non-empty, is set verbatim as
+// CreateIncidentRequest.AssignmentGroupID — a single static group for every
+// alert this service ingests (AlertHandler.assignmentGroupID's doc comment
+// explains why this isn't per-team/per-service yet). Left nil when empty,
+// never sent as an empty string.
+func MapToIncident(req AlertRequest, alertNumber, callerID, assignmentGroupID string) csmclient.CreateIncidentRequest {
 	iu := severity.MapImpactUrgency(req.Severity)
 	category := severity.MapCategory(req.Category)
 
@@ -120,6 +126,10 @@ func MapToIncident(req AlertRequest, alertNumber, callerID string) csmclient.Cre
 		Impact:    iu.Impact,
 		Urgency:   iu.Urgency,
 		Subject:   buildSubject(alertNumber, req),
+	}
+
+	if assignmentGroupID != "" {
+		out.AssignmentGroupID = &assignmentGroupID
 	}
 
 	if ct, ok := severity.MapContactType(req.Source); ok {
@@ -218,14 +228,22 @@ type AlertHandler struct {
 	// concept today. This is required, non-empty config, never a guessed or
 	// hardcoded value — see this service's README/CLAUDE.md.
 	callerID string
+	// assignmentGroupID is CreateIncidentRequest.AssignmentGroupID for every
+	// incident this service creates: a single, static, operator-configured
+	// group id (SRE_ALERT_ASSIGNMENT_GROUP_ID), optional — an empty value
+	// omits the field entirely rather than sending an empty string. There
+	// is no per-team/per-service resolution yet (the old ServiceNow
+	// implementation resolved this per alert source or team); this is a
+	// deliberately narrower first step, not the full mapping.
+	assignmentGroupID string
 }
 
 // NewAlertHandler creates an AlertHandler. callerID must be non-empty — the
 // caller (cmd/server/main.go) is expected to fail startup via mustEnv if
 // SRE_ALERT_CALLER_ID is unset, rather than this constructor silently
-// accepting an empty string.
-func NewAlertHandler(store alertStore, callerID string) *AlertHandler {
-	return &AlertHandler{store: store, callerID: callerID}
+// accepting an empty string. assignmentGroupID may be empty.
+func NewAlertHandler(store alertStore, callerID, assignmentGroupID string) *AlertHandler {
+	return &AlertHandler{store: store, callerID: callerID, assignmentGroupID: assignmentGroupID}
 }
 
 // errValidation wraps a validate() failure message so enqueueAlert's callers
@@ -272,7 +290,7 @@ func (h *AlertHandler) enqueueAlert(ctx context.Context, req AlertRequest) (id, 
 	id = idgen.New()
 
 	alertNumber, err = h.store.Enqueue(ctx, id, func(alertNumber string) ([]byte, error) {
-		incidentReq := MapToIncident(req, alertNumber, h.callerID)
+		incidentReq := MapToIncident(req, alertNumber, h.callerID, h.assignmentGroupID)
 		payload := alertpayload.Payload{
 			CreateIncidentRequest: incidentReq,
 			Source:                req.Source,

@@ -101,7 +101,7 @@ func TestMapOpenSearchPayload_MalformedJSON(t *testing.T) {
 
 func TestCreateAlertFromOpenSearch_Success(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/opensearch", bytes.NewReader(openSearchAlertJSON("critical")))
 	r = withAuthenticatedUsername(r, "opensearch")
@@ -152,7 +152,7 @@ func TestCreateAlertFromOpenSearch_NoAuthenticatedUsernameReturns500(t *testing.
 
 func TestCreateAlertFromOpenSearch_MalformedBodyReturns400(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/opensearch", bytes.NewReader([]byte(`not json`)))
 	w := httptest.NewRecorder()
@@ -168,7 +168,7 @@ func TestCreateAlertFromOpenSearch_StoreFailureReturns500(t *testing.T) {
 	store := &mockStore{enqueueFn: func(ctx context.Context, id string, buildPayload func(string) ([]byte, error)) (string, error) {
 		return "", errors.New("connection refused")
 	}}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/opensearch", bytes.NewReader(openSearchAlertJSON("critical")))
 	r = withAuthenticatedUsername(r, "opensearch")

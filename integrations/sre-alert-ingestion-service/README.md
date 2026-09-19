@@ -108,6 +108,7 @@ Copy `.env.example` to `.env` and fill in the values:
 | `CSM_INTEGRATION_CLIENT_SECRET` | OAuth2 client secret |
 | `CSM_INTEGRATION_SCOPES` | Comma-separated OAuth2 scopes |
 | `SRE_ALERT_CALLER_ID` | A real, provisioned platform user id — see "Known limitations" |
+| `SRE_ALERT_ASSIGNMENT_GROUP_ID` | Optional. A single, static CSM assignment group id applied to every incident this service creates — see "Known limitations" |
 | `SRE_ALERT_AUTH_USERS` | Required. Comma-separated `username:bcryptHash` pairs for inbound HTTP Basic Auth on `POST /alerts` — generate a hash with `cmd/gen-basic-auth-hash` |
 | `SRE_ALERT_MAX_RETRIES` | Retryable-failure count before escalation (default `3`) |
 | `SRE_ALERT_POLL_INTERVAL_SECONDS` | How often the worker scans the buffer (default `15`) |
@@ -399,6 +400,13 @@ to work around — documented here rather than as scattered code comments.
   service can create incidents (moot today anyway, given the point above,
   but the contract is sound for when it isn't). The service refuses to
   start if this is unset.
+- **`SRE_ALERT_ASSIGNMENT_GROUP_ID` is a single static group, not resolved
+  per team or service.** Every incident this service creates carries the
+  same assignment group (or none, if unset) — there is no equivalent yet of
+  the previous ServiceNow implementation's per-team/per-service assignment
+  group resolution (via a `?team=` query parameter or the alert's own
+  `service` field). A future iteration would resolve this from the alert
+  itself rather than one fixed operator-configured value.
 - **Escalation calls a single static on-call number, not a live rotation.**
   `SRE_ALERT_ONCALL_NUMBER` is fixed config, not looked up against any
   on-call schedule. A future iteration integrating a real rotation (e.g.

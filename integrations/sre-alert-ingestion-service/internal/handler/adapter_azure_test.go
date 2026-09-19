@@ -165,7 +165,7 @@ func TestMapAzurePayload_MissingEssentialsRejected(t *testing.T) {
 
 func TestCreateAlertFromAzure_Success(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	body := azureAlertJSON("Sev0", "Fired", "svc-checkout", "high_error_rate")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/azure", bytes.NewReader(body))
@@ -222,7 +222,7 @@ func TestCreateAlertFromAzure_NoAuthenticatedUsernameReturns500(t *testing.T) {
 
 func TestCreateAlertFromAzure_MalformedBodyReturns400(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/azure", bytes.NewReader([]byte(`not json`)))
 	w := httptest.NewRecorder()
@@ -236,7 +236,7 @@ func TestCreateAlertFromAzure_MalformedBodyReturns400(t *testing.T) {
 
 func TestCreateAlertFromAzure_ValidationFailureReturns400(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	// alertId containing a tag-delimiter character fails AlertRequest.validate.
 	body := []byte(`{"data":{"essentials":{"alertId":"id]with[delims","alertRule":"r","severity":"Sev1","monitorCondition":"Fired","monitoringService":"svc"}}}`)
@@ -255,7 +255,7 @@ func TestCreateAlertFromAzure_StoreFailureReturns500(t *testing.T) {
 	store := &mockStore{enqueueFn: func(ctx context.Context, id string, buildPayload func(string) ([]byte, error)) (string, error) {
 		return "", errors.New("connection refused")
 	}}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	body := azureAlertJSON("Sev0", "Fired", "svc-checkout", "high_error_rate")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/azure", bytes.NewReader(body))

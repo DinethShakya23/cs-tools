@@ -43,7 +43,7 @@ func validAlertJSON() []byte {
 
 func TestCreateAlert_Success(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader(validAlertJSON()))
 	r = withAuthenticatedUsername(r, "azure")
@@ -117,7 +117,7 @@ func TestCreateAlert_Success(t *testing.T) {
 // succeeding.
 func TestCreateAlert_NeverAttemptsDeliveryInline(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader(validAlertJSON()))
 	r = withAuthenticatedUsername(r, "azure")
@@ -129,7 +129,7 @@ func TestCreateAlert_NeverAttemptsDeliveryInline(t *testing.T) {
 
 func TestCreateAlert_RejectsInvalidJSON(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader([]byte(`not json`)))
 	w := httptest.NewRecorder()
@@ -177,7 +177,7 @@ func TestCreateAlert_RejectsMissingRequiredFields(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			store := &mockStore{}
-			h := NewAlertHandler(store, "caller-1")
+			h := NewAlertHandler(store, "caller-1", "")
 
 			r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader([]byte(tc.body)))
 			r = withAuthenticatedUsername(r, tc.authSource)
@@ -194,7 +194,7 @@ func TestCreateAlert_RejectsMissingRequiredFields(t *testing.T) {
 
 func TestCreateAlert_RejectsOversizedBody(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	huge := bytes.Repeat([]byte("a"), maxRequestBodyBytes+1)
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader(huge))
@@ -209,7 +209,7 @@ func TestCreateAlert_StoreFailureReturns500(t *testing.T) {
 	store := &mockStore{enqueueFn: func(ctx context.Context, id string, buildPayload func(string) ([]byte, error)) (string, error) {
 		return "", errors.New("connection refused")
 	}}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader(validAlertJSON()))
 	r = withAuthenticatedUsername(r, "azure")
@@ -283,15 +283,31 @@ func TestCreateAlert_NoAuthenticatedUsernameReturns500(t *testing.T) {
 
 func TestMapToIncident_UnmappedSourceOmitsContactType(t *testing.T) {
 	req := AlertRequest{Source: "datadog", Severity: "minor", Service: "svc", MetricName: "m", Description: "d"}
-	out := MapToIncident(req, "alert-id-1", "caller-1")
+	out := MapToIncident(req, "alert-id-1", "caller-1", "")
 	if out.ContactType != nil {
 		t.Errorf("ContactType = %v, want nil for an unmapped source", out.ContactType)
 	}
 }
 
+func TestMapToIncident_AssignmentGroupSetWhenConfigured(t *testing.T) {
+	req := AlertRequest{Source: "azure", Severity: "minor", Service: "svc", MetricName: "m", Description: "d"}
+	out := MapToIncident(req, "alert-id-1", "caller-1", "group-1")
+	if out.AssignmentGroupID == nil || *out.AssignmentGroupID != "group-1" {
+		t.Errorf("AssignmentGroupID = %v, want \"group-1\"", out.AssignmentGroupID)
+	}
+}
+
+func TestMapToIncident_AssignmentGroupOmittedWhenNotConfigured(t *testing.T) {
+	req := AlertRequest{Source: "azure", Severity: "minor", Service: "svc", MetricName: "m", Description: "d"}
+	out := MapToIncident(req, "alert-id-1", "caller-1", "")
+	if out.AssignmentGroupID != nil {
+		t.Errorf("AssignmentGroupID = %v, want nil when unconfigured", out.AssignmentGroupID)
+	}
+}
+
 func TestMapToIncident_CategoryPassthroughWhenValid(t *testing.T) {
 	req := AlertRequest{Source: "azure", Severity: "minor", Service: "svc", MetricName: "m", Description: "d", Category: "security"}
-	out := MapToIncident(req, "alert-id-1", "caller-1")
+	out := MapToIncident(req, "alert-id-1", "caller-1", "")
 	if out.Category != "SECURITY" {
 		t.Errorf("Category = %q, want SECURITY", out.Category)
 	}
@@ -303,7 +319,7 @@ func TestMapToIncident_CategoryPassthroughWhenValid(t *testing.T) {
 // so a future Subject-formatting tweak can't silently break it.
 func TestMapToIncident_SubjectStartsWithDedupTag(t *testing.T) {
 	req := AlertRequest{Source: "azure", Severity: "critical", Service: "svc-checkout", MetricName: "error_rate", Description: "d"}
-	out := MapToIncident(req, "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "caller-1")
+	out := MapToIncident(req, "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "caller-1", "")
 	want := "[alert:1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed]"
 	if !strings.HasPrefix(out.Subject, want) {
 		t.Errorf("Subject = %q, want it to start with %q", out.Subject, want)
@@ -319,7 +335,7 @@ func TestMapToIncident_SubjectStartsWithDedupTag(t *testing.T) {
 // both tags in its Subject, dedup tag first, group tag second.
 func TestMapToIncident_SubjectIncludesGroupTagWhenUniqueIdentifierSet(t *testing.T) {
 	req := AlertRequest{Source: "azure", Severity: "critical", Service: "svc-checkout", MetricName: "error_rate", Description: "d", UniqueIdentifier: "uid-123"}
-	out := MapToIncident(req, "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "caller-1")
+	out := MapToIncident(req, "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "caller-1", "")
 	want := csmclient.DedupTag("1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed") + " " + csmclient.GroupTag("azure", "uid-123") + " [azure] error_rate alert: svc-checkout"
 	if out.Subject != want {
 		t.Errorf("Subject = %q, want %q", out.Subject, want)
@@ -333,7 +349,7 @@ func TestMapToIncident_SubjectIncludesGroupTagWhenUniqueIdentifierSet(t *testing
 // meaningless tag either.
 func TestMapToIncident_SubjectOmitsGroupTagWhenNoUniqueIdentifier(t *testing.T) {
 	req := AlertRequest{Source: "azure", Severity: "critical", Service: "svc-checkout", MetricName: "error_rate", Description: "d"}
-	out := MapToIncident(req, "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "caller-1")
+	out := MapToIncident(req, "1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed", "caller-1", "")
 	if strings.Contains(out.Subject, "[group:") {
 		t.Errorf("Subject = %q, want no group tag when UniqueIdentifier is empty", out.Subject)
 	}
@@ -377,7 +393,7 @@ func TestDeriveAlertStatus(t *testing.T) {
 // depends on these being present in what actually gets persisted.
 func TestCreateAlert_PersistsGroupingFieldsAlongsideMappedIncident(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader(validAlertJSON()))
 	r = withAuthenticatedUsername(r, "azure")

@@ -136,7 +136,7 @@ func TestMapGrafanaPayload_MalformedJSON(t *testing.T) {
 
 func TestCreateAlertFromGrafana_Success(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/grafana", bytes.NewReader(grafanaAlertJSON("alerting", "checkout", "1")))
 	r = withAuthenticatedUsername(r, "grafana")
@@ -187,7 +187,7 @@ func TestCreateAlertFromGrafana_NoAuthenticatedUsernameReturns500(t *testing.T) 
 
 func TestCreateAlertFromGrafana_NonAlertingStateReturns200AndNeverEnqueues(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/grafana", bytes.NewReader(grafanaAlertJSON("resolved", "checkout", "1")))
 	r = withAuthenticatedUsername(r, "grafana")
@@ -223,7 +223,7 @@ func TestCreateAlertFromGrafana_MismatchedAuthenticatedSourceWithIgnoredPayloadR
 
 func TestCreateAlertFromGrafana_MalformedBodyReturns400(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/grafana", bytes.NewReader([]byte(`not json`)))
 	r = withAuthenticatedUsername(r, "grafana")
@@ -240,7 +240,7 @@ func TestCreateAlertFromGrafana_StoreFailureReturns500(t *testing.T) {
 	store := &mockStore{enqueueFn: func(ctx context.Context, id string, buildPayload func(string) ([]byte, error)) (string, error) {
 		return "", errors.New("connection refused")
 	}}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/grafana", bytes.NewReader(grafanaAlertJSON("alerting", "checkout", "1")))
 	r = withAuthenticatedUsername(r, "grafana")

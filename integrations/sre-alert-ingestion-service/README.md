@@ -220,6 +220,10 @@ to `SERVICE_INTERRUPTION` (`internal/severity.MapCategory`).
   action payload; `state` (`ACTIVE`/`COMPLETED`/`ERROR`) overrides the
   numeric `severity` field — `COMPLETED` always maps to `ok`, `ERROR`
   (the rule/monitor itself failed) always maps to `critical`
+- `POST /alerts/adapters/icinga2` — accepts an Icinga2 NotificationCommand
+  payload; a service-level event is distinguished from a host-level one by
+  `service_name` being non-empty; `notification_type == "Recovery"` forces
+  severity to `ok` regardless of the underlying state
 - `POST /alerts/adapters/site24x7` — accepts a Site24x7 native alert-webhook
   payload; only `STATUS` `TROUBLE`/`DOWN`/`CRITICAL` creates a buffered
   alert, any other `STATUS` returns `200` with a small acknowledgment body

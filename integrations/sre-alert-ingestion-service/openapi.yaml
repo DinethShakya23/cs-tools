@@ -122,6 +122,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /alerts/adapters/aws:
+    post:
+      summary: Submit an AWS SNS-wrapped CloudWatch alarm notification.
+      description: >
+        Auto-confirms an SNS SubscriptionConfirmation/UnsubscribeConfirmation
+        handshake message without creating an alert from either. A
+        Notification message's own Message field carries the CloudWatch
+        alarm as a JSON string, translated into this service's generic
+        AlertRequest and enqueued via the exact same
+        validation/buffering/worker/grouping/dedup/escalation path as
+        POST /alerts.
+      operationId: createAlertFromAWS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AWSSNSEnvelope'
+      responses:
+        "200":
+          description: SNS control message (subscription/unsubscribe confirmation) handled; no alert created.
+        "202":
+          description: Alert accepted and durably buffered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertAcceptedResponse'
+        "400":
+          description: BadRequest — missing a required field, or malformed JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "413":
+          description: RequestEntityTooLarge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: InternalServerError
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /alerts/adapters/site24x7:
     post:
       summary: Submit a Site24x7 native alert-webhook payload.
@@ -372,6 +418,29 @@ components:
             alertContext:
               type: object
               description: Vendor-specific nested object, rendered into Description as-is.
+
+    AWSSNSEnvelope:
+      type: object
+      description: >
+        AWS SNS's own message envelope. Type distinguishes a real alarm
+        notification from the two control messages SNS itself sends.
+      properties:
+        Type:
+          type: string
+          description: '"SubscriptionConfirmation", "UnsubscribeConfirmation", or "Notification".'
+        MessageId:
+          type: string
+        SubscribeURL:
+          type: string
+          description: Present only on a SubscriptionConfirmation message; GETed to auto-confirm the subscription.
+        Message:
+          type: string
+          description: >
+            The CloudWatch alarm as a JSON string (not a nested object —
+            SNS's own wire format). Its own AlarmDescription field carries
+            a second, nested JSON string with service/severity/category/
+            environment, since CloudWatch alarms have no native
+            custom-fields mechanism.
 
     Site24x7AlertPayload:
       type: object

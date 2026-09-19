@@ -201,10 +201,18 @@ to `SERVICE_INTERRUPTION` (`internal/severity.MapCategory`).
   `{"id": "<buffered-alert-id>", "alertNumber": "<human-readable-number>"}`.
   Never attempts delivery inline — see "Architecture" above. Stays available
   for any source that can speak `AlertRequest`'s shape directly (e.g. a
-  future in-house tool); the four vendor-adapter routes below are additive
+  future in-house tool); the vendor-adapter routes below are additive
   to it, not a replacement.
 - `POST /alerts/adapters/azure` — accepts an Azure Monitor
   common-alert-schema webhook payload
+- `POST /alerts/adapters/aws` — accepts an AWS SNS-wrapped CloudWatch alarm
+  notification. Auto-confirms an SNS `SubscriptionConfirmation`/
+  `UnsubscribeConfirmation` handshake message (no alert created from
+  either); a `Notification` message's `Message` field carries the
+  CloudWatch alarm as a JSON string, whose own `AlarmDescription` field
+  carries this service's mandatory fields (service/severity/category/
+  environment) as a second, nested JSON string — CloudWatch alarms have no
+  native custom-fields mechanism
 - `POST /alerts/adapters/site24x7` — accepts a Site24x7 native alert-webhook
   payload; only `STATUS` `TROUBLE`/`DOWN`/`CRITICAL` creates a buffered
   alert, any other `STATUS` returns `200` with a small acknowledgment body

@@ -143,6 +143,7 @@ func main() {
 	// authenticates itself, with no exceptions (see the comment on srv
 	// below).
 	mux.Handle("POST /alerts/adapters/azure", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromAzure)))
+	mux.Handle("POST /alerts/adapters/aws", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromAWS)))
 	mux.Handle("POST /alerts/adapters/site24x7", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromSite24x7)))
 	mux.Handle("POST /alerts/adapters/opensearch", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromOpenSearch)))
 	mux.Handle("POST /alerts/adapters/grafana", basicAuth(http.HandlerFunc(alertHandler.CreateAlertFromGrafana)))

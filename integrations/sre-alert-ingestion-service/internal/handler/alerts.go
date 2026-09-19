@@ -219,6 +219,18 @@ func buildWorkNotes(req AlertRequest) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// sanitizeUniqueIdentifier replaces every character in
+// csmclient.TagDelimiterChars ('[', ']', ':') with '_', so a vendor's own
+// natural identifier (e.g. an AWS ARN, which always contains colons) can be
+// used as AlertRequest.UniqueIdentifier without tripping validate()'s own
+// delimiter check. The replacement is lossy but deterministic and
+// collision-safe in practice — two distinct real identifiers differing only
+// in which of these three characters they use are not a realistic
+// vendor-identifier collision this service needs to guard against.
+func sanitizeUniqueIdentifier(id string) string {
+	return strings.NewReplacer("[", "_", "]", "_", ":", "_").Replace(id)
+}
+
 // AlertHandler handles POST /alerts.
 type AlertHandler struct {
 	store alertStore

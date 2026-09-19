@@ -229,6 +229,11 @@ to `SERVICE_INTERRUPTION` (`internal/severity.MapCategory`).
   rather than a severity word (`impact` is only consulted when `urgency`
   is absent or unrecognized). This vendor has no native resolved event —
   there is no recovery override here, unlike every other adapter
+- `POST /alerts/adapters/datadog` — accepts a Datadog Webhooks integration
+  payload; `env`/`severity` are read from the `tags` string
+  (`"env:production,severity:1"`), not dedicated fields — Datadog has no
+  first-class field for either; `transition == "Recovered"` forces
+  severity to `ok` regardless of the `severity` tag
 - `POST /alerts/adapters/site24x7` — accepts a Site24x7 native alert-webhook
   payload; only `STATUS` `TROUBLE`/`DOWN`/`CRITICAL` creates a buffered
   alert, any other `STATUS` returns `200` with a small acknowledgment body

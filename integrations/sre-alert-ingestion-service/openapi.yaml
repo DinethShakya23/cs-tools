@@ -168,6 +168,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /alerts/adapters/gcp:
+    post:
+      summary: Submit a GCP Cloud Monitoring webhook notification.
+      description: >
+        Translates GCP Cloud Monitoring's own native webhook body into this
+        service's generic AlertRequest, then reuses the exact same
+        validation/buffering/worker/grouping/dedup/escalation path as
+        POST /alerts.
+      operationId: createAlertFromGCP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GCPAlertPayload'
+      responses:
+        "202":
+          description: Alert accepted and durably buffered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertAcceptedResponse'
+        "400":
+          description: BadRequest — missing a required field, or malformed JSON.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "413":
+          description: RequestEntityTooLarge
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: InternalServerError
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /alerts/adapters/site24x7:
     post:
       summary: Submit a Site24x7 native alert-webhook payload.
@@ -441,6 +482,35 @@ components:
             a second, nested JSON string with service/severity/category/
             environment, since CloudWatch alarms have no native
             custom-fields mechanism.
+
+    GCPAlertPayload:
+      type: object
+      description: >
+        GCP Cloud Monitoring's own incident webhook notification body,
+        modeled to only the fields this adapter reads.
+      properties:
+        incident:
+          type: object
+          properties:
+            incident_id:
+              type: string
+            condition_name:
+              type: string
+            state:
+              type: string
+              description: '"open" or "closed".'
+            severity:
+              type: string
+              description: One of "critical", "error", "warning", "info".
+            summary:
+              type: string
+            url:
+              type: string
+            policy_user_labels:
+              type: object
+              additionalProperties:
+                type: string
+              description: Operator-configured labels (service/category/environment).
 
     Site24x7AlertPayload:
       type: object

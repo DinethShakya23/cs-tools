@@ -213,6 +213,9 @@ to `SERVICE_INTERRUPTION` (`internal/severity.MapCategory`).
   carries this service's mandatory fields (service/severity/category/
   environment) as a second, nested JSON string — CloudWatch alarms have no
   native custom-fields mechanism
+- `POST /alerts/adapters/gcp` — accepts a GCP Cloud Monitoring webhook
+  notification; `incident.state == "closed"` forces severity to `ok`
+  regardless of `incident.severity`
 - `POST /alerts/adapters/site24x7` — accepts a Site24x7 native alert-webhook
   payload; only `STATUS` `TROUBLE`/`DOWN`/`CRITICAL` creates a buffered
   alert, any other `STATUS` returns `200` with a small acknowledgment body

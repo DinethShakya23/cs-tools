@@ -496,10 +496,9 @@ services:
       csm-integration-service:
         condition: service_started
     environment:
-      # Discrete DB_* vars, not a single connection-string var — this
-      # service's cmd/server/main.go builds its own DSN from
-      # DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME/DB_SSLMODE (see its
-      # buildDatabaseDSN) and never reads a combined URL.
+      # Discrete DB_* vars, not a single URL -- see this service's own
+      # README ("Quick Start"): DB_PASSWORD is percent-encoded in code via
+      # url.UserPassword, so a hand-built URL is never correct here.
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USER: postgres
@@ -510,16 +509,12 @@ services:
       CSM_INTEGRATION_TOKEN_URL: http://mock-oidc:9100/oauth2/token
       CSM_INTEGRATION_CLIENT_ID: sre-alert-ingestion-dev-client
       CSM_INTEGRATION_CLIENT_SECRET: dev-secret
-      SRE_ALERT_CALLER_ID: local-dev-sre-ingestion
-      # Required: this service authenticates POST /alerts itself via HTTP
-      # Basic Auth (see internal/middleware.BasicAuth) rather than trusting a
-      # gateway. "devuser:devpassword" bcrypt-hashed at bcrypt.DefaultCost,
-      # generated with this service's own cmd/gen-basic-auth-hash — a
-      # throwaway local-dev credential, not a real secret. Every literal "$"
-      # in the hash must be escaped as "$$" or Compose's own variable
-      # interpolation mangles it (confirmed empirically: unescaped, Compose
-      # reads "$XQZsg..." as an unset variable and silently blanks it out).
-      SRE_ALERT_AUTH_USERS: "devuser:$$2a$$10$$XQZsgUlDouJfvZ/PGMspiOE6scpOj1BaEsYbmSGT3tNleZx0tLAYy"
+      # Real seeded user (Jane Doe, internal) -- must be a real "user" row
+      # id, not an arbitrary string.
+      SRE_ALERT_CALLER_ID: "00000000-0000-0000-0000-000000000001"
+      SRE_ALERT_ASSIGNMENT_GROUP_ID: "00000000-0000-0000-0000-000000000101"
+      # smoketest:devpassword, bcrypt-hashed via cmd/gen-basic-auth-hash.
+      SRE_ALERT_AUTH_USERS: "smoketest:$$2a$$10$$qQnlU54kTMrY21ZCVMzBh.HmEv.Kj8HU4XmaI2sz2lBJ.DjALJsvC"
       PORT: "8080"
     ports:
       - "127.0.0.1:8087:8080"

@@ -226,7 +226,7 @@ func TestCreateAlert_StoreFailureReturns500(t *testing.T) {
 // body itself is otherwise perfectly well-formed.
 func TestCreateAlert_MismatchedSourceReturns403(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	// validAlertJSON claims source "azure"; authenticate as a different,
 	// legitimately-configured credential instead.
@@ -248,7 +248,7 @@ func TestCreateAlert_MismatchedSourceReturns403(t *testing.T) {
 // own Source string.
 func TestCreateAlert_SourceMatchIsCaseInsensitiveAndTrimmed(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader(validAlertJSON()))
 	r = withAuthenticatedUsername(r, "  AZURE  ")
@@ -268,7 +268,7 @@ func TestCreateAlert_SourceMatchIsCaseInsensitiveAndTrimmed(t *testing.T) {
 // let the request through unauthorized.
 func TestCreateAlert_NoAuthenticatedUsernameReturns500(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts", bytes.NewReader(validAlertJSON()))
 	w := httptest.NewRecorder()

@@ -119,7 +119,7 @@ func TestCreateAlertFromOpenSearch_Success(t *testing.T) {
 // see its doc comment.
 func TestCreateAlertFromOpenSearch_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/opensearch", bytes.NewReader(openSearchAlertJSON("critical")))
 	r = withAuthenticatedUsername(r, "azure")
@@ -137,7 +137,7 @@ func TestCreateAlertFromOpenSearch_MismatchedAuthenticatedSourceReturns403(t *te
 // comment.
 func TestCreateAlertFromOpenSearch_NoAuthenticatedUsernameReturns500(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/opensearch", bytes.NewReader(openSearchAlertJSON("critical")))
 	w := httptest.NewRecorder()

@@ -187,7 +187,7 @@ func TestCreateAlertFromAzure_Success(t *testing.T) {
 // Source literal.
 func TestCreateAlertFromAzure_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	body := azureAlertJSON("Sev0", "Fired", "svc-checkout", "high_error_rate")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/azure", bytes.NewReader(body))
@@ -206,7 +206,7 @@ func TestCreateAlertFromAzure_MismatchedAuthenticatedSourceReturns403(t *testing
 // missing authenticated identity must fail closed, not silently pass through.
 func TestCreateAlertFromAzure_NoAuthenticatedUsernameReturns500(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	body := azureAlertJSON("Sev0", "Fired", "svc-checkout", "high_error_rate")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/azure", bytes.NewReader(body))

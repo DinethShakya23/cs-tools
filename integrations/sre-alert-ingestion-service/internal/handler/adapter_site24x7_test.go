@@ -127,7 +127,7 @@ func TestCreateAlertFromSite24x7_Success(t *testing.T) {
 // doc comment.
 func TestCreateAlertFromSite24x7_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/site24x7", bytes.NewReader(site24x7AlertJSON("DOWN")))
 	r = withAuthenticatedUsername(r, "azure")
@@ -145,7 +145,7 @@ func TestCreateAlertFromSite24x7_MismatchedAuthenticatedSourceReturns403(t *test
 // comment.
 func TestCreateAlertFromSite24x7_NoAuthenticatedUsernameReturns500(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/site24x7", bytes.NewReader(site24x7AlertJSON("DOWN")))
 	w := httptest.NewRecorder()
@@ -181,7 +181,7 @@ func TestCreateAlertFromSite24x7_NonActionableStatusReturns200AndNeverEnqueues(t
 // ignored (STATUS not TROUBLE/DOWN/CRITICAL) -- it must never see 200.
 func TestCreateAlertFromSite24x7_MismatchedAuthenticatedSourceWithIgnoredPayloadReturns403(t *testing.T) {
 	store := &mockStore{}
-	h := NewAlertHandler(store, "caller-1")
+	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/site24x7", bytes.NewReader(site24x7AlertJSON("UP")))
 	r = withAuthenticatedUsername(r, "azure")

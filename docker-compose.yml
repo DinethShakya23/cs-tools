@@ -513,8 +513,16 @@ services:
       # id, not an arbitrary string.
       SRE_ALERT_CALLER_ID: "00000000-0000-0000-0000-000000000001"
       SRE_ALERT_ASSIGNMENT_GROUP_ID: "00000000-0000-0000-0000-000000000101"
-      # smoketest:devpassword, bcrypt-hashed via cmd/gen-basic-auth-hash.
-      SRE_ALERT_AUTH_USERS: "smoketest:$$2a$$10$$qQnlU54kTMrY21ZCVMzBh.HmEv.Kj8HU4XmaI2sz2lBJ.DjALJsvC"
+      # requireAuthenticatedSource (internal/handler/alerts.go) requires the
+      # Basic Auth username itself to equal the alert's own claimed source
+      # (case-insensitively) -- for a vendor adapter route that's the fixed
+      # literal that adapter hardcodes (e.g. "azure"), for POST /alerts
+      # it's whatever the JSON body's own "source" field says. So each
+      # vendor needs its own username entry here, not one shared test user.
+      # All share the password "devpassword", bcrypt-hashed once via
+      # cmd/gen-basic-auth-hash -- reusing one hash across multiple
+      # username:hash pairs is fine, each is checked independently.
+      SRE_ALERT_AUTH_USERS: "smoketest:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,azure:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,aws:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,gcp:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,elasticsearch:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,icinga2:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,openobserve:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,datadog:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,site24x7:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,opensearch:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu,grafana:$$2a$$10$$OYZV3mgMWAqo/46Gm4hUCO5yQ00ZU3//zMDp6tXevs0KoOR1MdRsu"
       PORT: "8080"
     ports:
       - "127.0.0.1:8087:8080"

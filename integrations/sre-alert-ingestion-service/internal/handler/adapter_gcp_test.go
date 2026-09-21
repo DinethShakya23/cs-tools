@@ -107,12 +107,45 @@ func TestMapGCPPayload_NoLabelsFallsBackToDefaultService(t *testing.T) {
 	}
 }
 
+func TestCreateAlertFromGCP_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := gcpAlertJSON("critical", "open", "high-cpu")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/gcp", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "site24x7")
+	w := httptest.NewRecorder()
+	h.CreateAlertFromGCP(w, r)
+
+	assertStatus(t, w, http.StatusForbidden)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when the authenticated identity does not match this adapter's fixed source")
+	}
+}
+
+func TestCreateAlertFromGCP_NoAuthenticatedUsernameReturns500(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := gcpAlertJSON("critical", "open", "high-cpu")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/gcp", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreateAlertFromGCP(w, r)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+	assertErrorMessage(t, w, ErrMsgInternal)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when there is no authenticated identity in context")
+	}
+}
+
 func TestCreateAlertFromGCP_Success(t *testing.T) {
 	store := &mockStore{}
 	h := NewAlertHandler(store, "caller-1", "")
 
 	body := gcpAlertJSON("critical", "open", "high-cpu")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/gcp", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "gcp")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromGCP(w, r)
 
@@ -127,6 +160,7 @@ func TestCreateAlertFromGCP_MalformedBodyReturns400(t *testing.T) {
 	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/gcp", bytes.NewReader([]byte(`not json`)))
+	r = withAuthenticatedUsername(r, "gcp")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromGCP(w, r)
 
@@ -141,6 +175,7 @@ func TestCreateAlertFromGCP_MissingIncidentReturns400(t *testing.T) {
 	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/gcp", bytes.NewReader([]byte(`{}`)))
+	r = withAuthenticatedUsername(r, "gcp")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromGCP(w, r)
 
@@ -155,6 +190,7 @@ func TestCreateAlertFromGCP_StoreFailureReturns500(t *testing.T) {
 
 	body := gcpAlertJSON("critical", "open", "high-cpu")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/gcp", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "gcp")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromGCP(w, r)
 

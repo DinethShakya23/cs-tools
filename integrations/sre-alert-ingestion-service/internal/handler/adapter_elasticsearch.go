@@ -139,6 +139,10 @@ func (h *AlertHandler) CreateAlertFromElasticsearch(w http.ResponseWriter, r *ht
 		return
 	}
 
+	if !h.requireAuthenticatedSource(w, r, req.Source) {
+		return
+	}
+
 	id, alertNumber, err := h.enqueueAlert(r.Context(), req)
 	h.writeEnqueueResult(w, r, id, alertNumber, err)
 }

@@ -102,12 +102,45 @@ func TestMapOpenObservePayload_UniqueIdentifierIsCorrelationID(t *testing.T) {
 	}
 }
 
+func TestCreateAlertFromOpenObserve_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := openObserveAlertJSON("1", "")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/openobserve", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "site24x7")
+	w := httptest.NewRecorder()
+	h.CreateAlertFromOpenObserve(w, r)
+
+	assertStatus(t, w, http.StatusForbidden)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when the authenticated identity does not match this adapter's fixed source")
+	}
+}
+
+func TestCreateAlertFromOpenObserve_NoAuthenticatedUsernameReturns500(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := openObserveAlertJSON("1", "")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/openobserve", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreateAlertFromOpenObserve(w, r)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+	assertErrorMessage(t, w, ErrMsgInternal)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when there is no authenticated identity in context")
+	}
+}
+
 func TestCreateAlertFromOpenObserve_Success(t *testing.T) {
 	store := &mockStore{}
 	h := NewAlertHandler(store, "caller-1", "")
 
 	body := openObserveAlertJSON("1", "")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/openobserve", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "openobserve")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromOpenObserve(w, r)
 
@@ -122,6 +155,7 @@ func TestCreateAlertFromOpenObserve_MalformedBodyReturns400(t *testing.T) {
 	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/openobserve", bytes.NewReader([]byte(`not json`)))
+	r = withAuthenticatedUsername(r, "openobserve")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromOpenObserve(w, r)
 
@@ -139,6 +173,7 @@ func TestCreateAlertFromOpenObserve_StoreFailureReturns500(t *testing.T) {
 
 	body := openObserveAlertJSON("1", "")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/openobserve", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "openobserve")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromOpenObserve(w, r)
 

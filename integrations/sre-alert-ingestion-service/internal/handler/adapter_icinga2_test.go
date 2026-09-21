@@ -134,12 +134,45 @@ func TestMapIcinga2Payload_MissingHostNameErrors(t *testing.T) {
 	}
 }
 
+func TestCreateAlertFromIcinga2_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := icinga2ServiceAlertJSON("Problem", "CRITICAL")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/icinga2", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "site24x7")
+	w := httptest.NewRecorder()
+	h.CreateAlertFromIcinga2(w, r)
+
+	assertStatus(t, w, http.StatusForbidden)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when the authenticated identity does not match this adapter's fixed source")
+	}
+}
+
+func TestCreateAlertFromIcinga2_NoAuthenticatedUsernameReturns500(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := icinga2ServiceAlertJSON("Problem", "CRITICAL")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/icinga2", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreateAlertFromIcinga2(w, r)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+	assertErrorMessage(t, w, ErrMsgInternal)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when there is no authenticated identity in context")
+	}
+}
+
 func TestCreateAlertFromIcinga2_Success(t *testing.T) {
 	store := &mockStore{}
 	h := NewAlertHandler(store, "caller-1", "")
 
 	body := icinga2ServiceAlertJSON("Problem", "CRITICAL")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/icinga2", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "icinga2")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromIcinga2(w, r)
 
@@ -154,6 +187,7 @@ func TestCreateAlertFromIcinga2_MalformedBodyReturns400(t *testing.T) {
 	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/icinga2", bytes.NewReader([]byte(`not json`)))
+	r = withAuthenticatedUsername(r, "icinga2")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromIcinga2(w, r)
 
@@ -168,6 +202,7 @@ func TestCreateAlertFromIcinga2_MissingHostNameReturns400(t *testing.T) {
 	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/icinga2", bytes.NewReader([]byte(`{}`)))
+	r = withAuthenticatedUsername(r, "icinga2")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromIcinga2(w, r)
 
@@ -182,6 +217,7 @@ func TestCreateAlertFromIcinga2_StoreFailureReturns500(t *testing.T) {
 
 	body := icinga2ServiceAlertJSON("Problem", "CRITICAL")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/icinga2", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "icinga2")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromIcinga2(w, r)
 

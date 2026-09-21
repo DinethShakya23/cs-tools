@@ -110,12 +110,45 @@ func TestMapElasticsearchPayload_UniqueIdentifierIsAlertID(t *testing.T) {
 	}
 }
 
+func TestCreateAlertFromElasticsearch_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := elasticsearchAlertJSON("ACTIVE", "1")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/elasticsearch", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "site24x7")
+	w := httptest.NewRecorder()
+	h.CreateAlertFromElasticsearch(w, r)
+
+	assertStatus(t, w, http.StatusForbidden)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when the authenticated identity does not match this adapter's fixed source")
+	}
+}
+
+func TestCreateAlertFromElasticsearch_NoAuthenticatedUsernameReturns500(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := elasticsearchAlertJSON("ACTIVE", "1")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/elasticsearch", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreateAlertFromElasticsearch(w, r)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+	assertErrorMessage(t, w, ErrMsgInternal)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when there is no authenticated identity in context")
+	}
+}
+
 func TestCreateAlertFromElasticsearch_Success(t *testing.T) {
 	store := &mockStore{}
 	h := NewAlertHandler(store, "caller-1", "")
 
 	body := elasticsearchAlertJSON("ACTIVE", "1")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/elasticsearch", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "elasticsearch")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromElasticsearch(w, r)
 
@@ -130,6 +163,7 @@ func TestCreateAlertFromElasticsearch_MalformedBodyReturns400(t *testing.T) {
 	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/elasticsearch", bytes.NewReader([]byte(`not json`)))
+	r = withAuthenticatedUsername(r, "elasticsearch")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromElasticsearch(w, r)
 
@@ -147,6 +181,7 @@ func TestCreateAlertFromElasticsearch_StoreFailureReturns500(t *testing.T) {
 
 	body := elasticsearchAlertJSON("ACTIVE", "1")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/elasticsearch", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "elasticsearch")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromElasticsearch(w, r)
 

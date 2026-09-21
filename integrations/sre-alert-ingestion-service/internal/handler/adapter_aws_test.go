@@ -117,12 +117,45 @@ func TestMapCloudWatchAlarm_UniqueIdentifierIsSanitizedAlarmArn(t *testing.T) {
 	}
 }
 
+func TestCreateAlertFromAWS_MismatchedAuthenticatedSourceReturns403(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := cloudWatchSNSNotification("Critical", "ALARM", "high-cpu")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "site24x7")
+	w := httptest.NewRecorder()
+	h.CreateAlertFromAWS(w, r)
+
+	assertStatus(t, w, http.StatusForbidden)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when the authenticated identity does not match this adapter's fixed source")
+	}
+}
+
+func TestCreateAlertFromAWS_NoAuthenticatedUsernameReturns500(t *testing.T) {
+	store := &mockStore{}
+	h := NewAlertHandler(store, "caller-1", "")
+
+	body := cloudWatchSNSNotification("Critical", "ALARM", "high-cpu")
+	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	h.CreateAlertFromAWS(w, r)
+
+	assertStatus(t, w, http.StatusInternalServerError)
+	assertErrorMessage(t, w, ErrMsgInternal)
+	if len(store.enqueuedPayloads) != 0 {
+		t.Error("Enqueue should not be called when there is no authenticated identity in context")
+	}
+}
+
 func TestCreateAlertFromAWS_NotificationSuccess(t *testing.T) {
 	store := &mockStore{}
 	h := NewAlertHandler(store, "caller-1", "")
 
 	body := cloudWatchSNSNotification("Critical", "ALARM", "high-cpu")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "aws")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromAWS(w, r)
 
@@ -149,6 +182,7 @@ func TestCreateAlertFromAWS_SubscriptionConfirmationConfirmsAndDoesNotEnqueue(t 
 		SubscribeURL: "https://sns.us-east-1.amazonaws.com/confirm?token=abc",
 	})
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(env))
+	r = withAuthenticatedUsername(r, "aws")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromAWS(w, r)
 
@@ -176,6 +210,7 @@ func TestCreateAlertFromAWS_SubscriptionConfirmationStillReturns200OnGetFailure(
 		SubscribeURL: "https://sns.us-east-1.amazonaws.com/confirm?token=abc",
 	})
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(env))
+	r = withAuthenticatedUsername(r, "aws")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromAWS(w, r)
 
@@ -190,6 +225,7 @@ func TestCreateAlertFromAWS_UnsubscribeConfirmationAcknowledgedNoEnqueue(t *test
 
 	env, _ := json.Marshal(awsSNSEnvelope{Type: "UnsubscribeConfirmation"})
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(env))
+	r = withAuthenticatedUsername(r, "aws")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromAWS(w, r)
 
@@ -204,6 +240,7 @@ func TestCreateAlertFromAWS_MalformedBodyReturns400(t *testing.T) {
 	h := NewAlertHandler(store, "caller-1", "")
 
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader([]byte(`not json`)))
+	r = withAuthenticatedUsername(r, "aws")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromAWS(w, r)
 
@@ -219,6 +256,7 @@ func TestCreateAlertFromAWS_MalformedMessageReturns400(t *testing.T) {
 
 	env, _ := json.Marshal(awsSNSEnvelope{Type: "Notification", Message: "not json"})
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(env))
+	r = withAuthenticatedUsername(r, "aws")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromAWS(w, r)
 
@@ -236,6 +274,7 @@ func TestCreateAlertFromAWS_StoreFailureReturns500(t *testing.T) {
 
 	body := cloudWatchSNSNotification("Critical", "ALARM", "high-cpu")
 	r := httptest.NewRequest(http.MethodPost, "/alerts/adapters/aws", bytes.NewReader(body))
+	r = withAuthenticatedUsername(r, "aws")
 	w := httptest.NewRecorder()
 	h.CreateAlertFromAWS(w, r)
 
